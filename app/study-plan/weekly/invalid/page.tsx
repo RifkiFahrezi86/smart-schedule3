@@ -2,49 +2,125 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { runScheduler } from "@/lib/scheduler";
-import ProgressBar from "@/ui/ProgressBar";
+import type { WeeklyResult } from "@/lib/types";
 
-export default function WeeklyProcessPage() {
+export default function WeeklyInvalidPage() {
   const router = useRouter();
-  const [progress, setProgress] = useState(0);
-  const [step, setStep] = useState("Memuat data...");
+  const [result, setResult] = useState<WeeklyResult | null>(null);
 
   useEffect(() => {
-    const run = async () => {
-      const raw = sessionStorage.getItem("weeklyScheduleData");
-      if (!raw) return router.push("/study-plan/weekly");
+    const data = sessionStorage.getItem("weeklyScheduleResult");
+    if (!data) {
+      router.push("/study-plan/weekly");
+      return;
+    }
 
-      setStep("Mengurutkan tugas (Greedy Deadline)");
-      setProgress(40);
-      await delay(800);
-
-      setStep("Optimasi distribusi (Backtracking)");
-      setProgress(70);
-      await delay(1000);
-
-      const result = await runScheduler("weekly", JSON.parse(raw));
-      sessionStorage.setItem("weeklyScheduleResult", JSON.stringify(result));
-
-      setProgress(100);
-      router.push(result.success
-        ? "/study-plan/weekly/result"
-        : "/study-plan/weekly/invalid"
-      );
-    };
-
-    run();
+    const parsed = JSON.parse(data);
+    setResult(parsed);
   }, []);
 
+  if (!result) {
+    return <div>Loading...</div>;
+  }
+
+  const errors = result.errors || [];
+  const suggestions = result.suggestions || [];
+
   return (
-    <div className="process-container">
-      <div className="process-content">
-        <div className="process-icon">⚙️</div>
-        <h1>Memproses Jadwal Mingguan</h1>
-        <ProgressBar progress={progress} currentStep={step} />
+    <div className="invalid-container">
+      <div className="invalid-header">
+        <div className="invalid-icon">⚠️</div>
+        <h1>Jadwal Tidak Valid</h1>
+        <p>Sistem tidak dapat membuat jadwal dengan parameter yang diberikan</p>
+      </div>
+
+      {/* Error List */}
+      {errors.length > 0 && (
+        <div className="error-list">
+          <h3>🚫 Masalah yang Ditemukan:</h3>
+          {errors.map((error, index) => (
+            <div key={index} className="error-item">
+              <span className="error-badge">{error.type}</span>
+              <p>{error.message}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Suggestions */}
+      {suggestions.length > 0 && (
+        <div className="suggestion-box">
+          <h3>💡 Saran Perbaikan:</h3>
+          <ul>
+            {suggestions.map((suggestion, index) => (
+              <li key={index}>{suggestion}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Common Issues */}
+      <div className="suggestion-box">
+        <h3>📋 Kemungkinan Penyebab:</h3>
+        <ul>
+          <li>
+            <strong>Total jam terlalu besar:</strong> Jumlah jam semua tugas
+            melebihi kapasitas mingguan × jumlah minggu
+          </li>
+          <li>
+            <strong>Deadline terlalu dekat:</strong> Beberapa tugas memiliki
+            deadline sebelum jadwal dimulai
+          </li>
+          <li>
+            <strong>Hari aktif terlalu sedikit:</strong> Tidak cukup hari untuk
+            mendistribusikan semua tugas
+          </li>
+          <li>
+            <strong>Kapasitas per minggu terlalu kecil:</strong> Max jam per
+            minggu tidak cukup untuk menampung tugas
+          </li>
+        </ul>
+      </div>
+
+      {/* Example Fix */}
+      <div
+        style={{
+          background: "#fff",
+          padding: "20px",
+          borderRadius: "12px",
+          marginBottom: "32px",
+        }}
+      >
+        <h3 style={{ marginBottom: "12px", fontSize: "18px" }}>
+          ✏️ Contoh Perbaikan:
+        </h3>
+        <div style={{ display: "grid", gap: "8px", fontSize: "14px" }}>
+          <div>
+            • Jika total tugas 60 jam untuk 2 minggu, set max jam/minggu minimal{" "}
+            <strong>30 jam</strong>
+          </div>
+          <div>
+            • Pastikan deadline tugas{" "}
+            <strong>setelah tanggal mulai penjadwalan</strong>
+          </div>
+          <div>
+            • Pilih minimal <strong>5-6 hari aktif</strong> untuk fleksibilitas
+          </div>
+          <div>
+            • Untuk beban berat, pertimbangkan menambah{" "}
+            <strong>jumlah minggu</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="invalid-actions">
+        <button
+          className="btn-primary"
+          onClick={() => router.push("/study-plan/weekly")}
+        >
+          ← Kembali & Perbaiki Input
+        </button>
       </div>
     </div>
   );
 }
-
-const delay = (ms: number) => new Promise(r => setTimeout(r, ms));

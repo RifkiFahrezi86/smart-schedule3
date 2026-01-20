@@ -1,80 +1,100 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { WeeklyConfig, WeeklyTask } from "@/lib/types";
-import { validateWeeklyInput } from "@/lib/scheduler";
+import ProgressBar from "@/ui/ProgressBar";
+import { runScheduler } from "@/lib/scheduler";
 
-export default function WeeklyInputPage() {
+export default function WeeklyProcessPage() {
   const router = useRouter();
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState("Memuat data...");
 
-  const [config, setConfig] = useState<WeeklyConfig>({
-    startDate: "2026-01-20",
-    weeks: 2,
-    maxHoursPerWeek: 20,
-    activeDays: ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"],
-  });
+  useEffect(() => {
+    processSchedule();
+  }, []);
 
-  const [tasks, setTasks] = useState<WeeklyTask[]>([]);
+  const processSchedule = async () => {
+    try {
+      const data = sessionStorage.getItem("weeklyScheduleData");
+      if (!data) {
+        router.push("/study-plan/weekly");
+        return;
+      }
 
-  const handleGenerate = () => {
-    const validation = validateWeeklyInput(config, tasks);
-    if (!validation.valid) {
-      alert(validation.errors.join("\n"));
-      return;
+      const { config, tasks } = JSON.parse(data);
+
+      // Step 1: Validasi
+      setCurrentStep("Validasi input data...");
+      setProgress(15);
+      await sleep(700);
+
+      // Step 2: Sorting by deadline
+      setCurrentStep("Mengurutkan tugas berdasarkan deadline (Greedy)...");
+      setProgress(30);
+      await sleep(900);
+
+      // Step 3: Calculate weeks
+      setCurrentStep("Menghitung distribusi mingguan...");
+      setProgress(50);
+      await sleep(1000);
+
+      // Step 4: Backtracking
+      setCurrentStep("Mencari distribusi optimal (Backtracking)...");
+      setProgress(70);
+      await sleep(1100);
+
+      // Step 5: API Call
+      setCurrentStep("Menghasilkan jadwal mingguan...");
+      setProgress(85);
+
+      const result = await runScheduler("weekly", { config, tasks });
+
+      setProgress(100);
+      await sleep(500);
+
+      // Store result
+      sessionStorage.setItem("weeklyScheduleResult", JSON.stringify(result));
+
+      // Navigate
+      if (result.success) {
+        router.push("/study-plan/weekly/result");
+      } else {
+        router.push("/study-plan/weekly/invalid");
+      }
+    } catch (error) {
+      console.error("Process error:", error);
+      alert("Terjadi kesalahan. Silakan coba lagi.");
+      router.push("/study-plan/weekly");
     }
-
-    sessionStorage.setItem(
-      "weeklyScheduleData",
-      JSON.stringify({ config, tasks })
-    );
-
-    router.push("/study-plan/weekly/process");
   };
 
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
   return (
-    <div className="input-container">
-      <div className="input-header">
-        <h1>📅 JADWAL MINGGUAN</h1>
-        <p>Distribusi tugas selama beberapa minggu secara seimbang</p>
-      </div>
+    <div className="process-container">
+      <div className="process-content">
+        <div className="process-icon">⚙️</div>
+        <h1>Processing Weekly Schedule</h1>
 
-      {/* Periode */}
-      <div className="input-section">
-        <h3>📆 Periode</h3>
-        <div className="input-row">
-          <input type="date" value={config.startDate}
-            onChange={(e) => setConfig({ ...config, startDate: e.target.value })}
-          />
-          <select value={config.weeks}
-            onChange={(e) => setConfig({ ...config, weeks: Number(e.target.value) })}
-          >
-            <option value={2}>2 Minggu</option>
-            <option value={3}>3 Minggu</option>
-          </select>
+        <ProgressBar progress={progress} currentStep={currentStep} />
+
+        <div className="process-info">
+          <div className="info-item">
+            <span className="info-label">Algorithm</span>
+            <span className="info-value">Greedy + Backtracking</span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Mode</span>
+            <span className="info-value">Weekly</span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Status</span>
+            <span className="info-value">
+              {progress === 100 ? "Complete" : "Processing"}
+            </span>
+          </div>
         </div>
-      </div>
-
-      {/* Kapasitas */}
-      <div className="input-section">
-        <h3>⚡ Kapasitas Mingguan</h3>
-        <input
-          type="number"
-          value={config.maxHoursPerWeek}
-          onChange={(e) =>
-            setConfig({ ...config, maxHoursPerWeek: Number(e.target.value) })
-          }
-        />
-      </div>
-
-      {/* Action */}
-      <div className="input-actions">
-        <button className="btn-secondary" onClick={() => router.back()}>
-          ← Kembali
-        </button>
-        <button className="btn-primary" onClick={handleGenerate}>
-          Proses Jadwal →
-        </button>
       </div>
     </div>
   );

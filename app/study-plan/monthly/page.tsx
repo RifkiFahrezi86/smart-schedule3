@@ -2,84 +2,326 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { MonthlyConfig, MonthlyTask } from "@/lib/types";
+import { validateMonthlyInput } from "@/lib/scheduler";
 
 export default function MonthlyInputPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    month: "2026-01",
-    maxHoursPerMonth: "80",
-    blockedDates: ["10", "11", "12"]
+
+  // Config state
+  const [config, setConfig] = useState<MonthlyConfig>({
+    startDate: new Date().toISOString().split("T")[0],
+    maxHoursPerMonth: 80,
+    blockedDates: [],
   });
 
-  const [tasks, setTasks] = useState([
-    { name: "Proyek Besar", hours: "30", deadline: "25", priority: "tinggi" },
-    { name: "UAS", hours: "20", deadline: "30", priority: "tinggi" },
-    { name: "Tugas Mingguan", hours: "16", deadline: "15", priority: "sedang" }
-  ]);
+  // Tasks state
+  const [tasks, setTasks] = useState<MonthlyTask[]>([]);
+  const [newTask, setNewTask] = useState({
+    name: "",
+    duration: 10,
+    deadline: 31,
+  });
 
-  const handleProcess = () => {
+  // Blocked dates
+  const [newBlockedDate, setNewBlockedDate] = useState(1);
+
+  const handleAddBlockedDate = () => {
+    if (
+      newBlockedDate >= 1 &&
+      newBlockedDate <= 31 &&
+      !config.blockedDates.includes(newBlockedDate)
+    ) {
+      setConfig({
+        ...config,
+        blockedDates: [...config.blockedDates, newBlockedDate].sort(
+          (a, b) => a - b
+        ),
+      });
+      setNewBlockedDate(newBlockedDate + 1);
+    }
+  };
+
+  const handleRemoveBlockedDate = (date: number) => {
+    setConfig({
+      ...config,
+      blockedDates: config.blockedDates.filter((d) => d !== date),
+    });
+  };
+
+  const handleAddTask = () => {
+    if (newTask.name && newTask.duration > 0 && newTask.deadline > 0) {
+      setTasks([...tasks, newTask]);
+      setNewTask({
+        name: "",
+        duration: 10,
+        deadline: 31,
+      });
+    }
+  };
+
+  const handleRemoveTask = (index: number) => {
+    setTasks(tasks.filter((_, i) => i !== index));
+  };
+
+  const handleGenerate = () => {
+    const validation = validateMonthlyInput(config, tasks);
+
+    if (!validation.valid) {
+      alert(validation.errors.join("\n"));
+      return;
+    }
+
+    // Store in sessionStorage
+    sessionStorage.setItem(
+      "monthlyScheduleData",
+      JSON.stringify({ config, tasks })
+    );
+
     router.push("/study-plan/monthly/process");
+  };
+
+  const getMonthName = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const months = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
+    ];
+    return `${months[date.getMonth()]} ${date.getFullYear()}`;
   };
 
   return (
     <div className="input-container">
       <div className="input-header">
-        <h1>🗓️ JADWAL BULANAN</h1>
-        <p>Rencanakan proyek dan ujian besar untuk 1 bulan ke depan</p>
+        <h1>📊 MONTHLY SCHEDULE</h1>
+        <p>Perencanaan proyek dan tugas besar jangka panjang</p>
       </div>
 
+      {/* Periode */}
       <div className="input-section">
-        <h3>📅 Periode Bulan</h3>
-        <div className="input-row">
-          <div className="input-group">
-            <label>Pilih Bulan</label>
-            <input type="month" value={formData.month} onChange={(e) => setFormData({...formData, month: e.target.value})} />
-          </div>
-          <div className="input-group">
-            <label>Max Productive Time (jam/bulan)</label>
-            <input type="number" value={formData.maxHoursPerMonth} onChange={(e) => setFormData({...formData, maxHoursPerMonth: e.target.value})} />
-          </div>
+        <h3>📅 Bulan Penjadwalan</h3>
+        <div className="input-group">
+          <label>Pilih Bulan</label>
+          <input
+            type="date"
+            value={config.startDate}
+            onChange={(e) =>
+              setConfig({ ...config, startDate: e.target.value })
+            }
+          />
+          <p className="note">
+            Bulan yang dipilih: <strong>{getMonthName(config.startDate)}</strong>
+          </p>
         </div>
       </div>
 
+      {/* Kapasitas */}
       <div className="input-section">
-        <h3>🚫 Tanggal Terblokir (Personal Time)</h3>
+        <h3>⚡ Kapasitas Bulanan</h3>
+        <div className="input-group">
+          <label>Max Jam per Bulan</label>
+          <input
+            type="number"
+            value={config.maxHoursPerMonth}
+            onChange={(e) =>
+              setConfig({
+                ...config,
+                maxHoursPerMonth: parseInt(e.target.value),
+              })
+            }
+            min="20"
+            max="200"
+          />
+          <p className="note">
+            Rekomendasi: 60-100 jam per bulan untuk beban normal
+          </p>
+        </div>
+      </div>
+
+      {/* Tanggal Terblokir */}
+      <div className="input-section">
+        <h3>🚫 Tanggal Tidak Tersedia</h3>
+
         <div className="blocked-dates">
-          <div className="date-chips">
-            {formData.blockedDates.map(date => (
-              <div key={date} className="date-chip">
-                {date} Januari
-                <button className="chip-remove">×</button>
-              </div>
-            ))}
+          {config.blockedDates.length > 0 && (
+            <div className="date-chips">
+              {config.blockedDates.map((date) => (
+                <div key={date} className="date-chip">
+                  <span>Tanggal {date}</span>
+                  <button
+                    className="chip-remove"
+                    onClick={() => handleRemoveBlockedDate(date)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="input-row">
+            <div className="input-group">
+              <label>Tambah Tanggal Terblokir</label>
+              <input
+                type="number"
+                value={newBlockedDate}
+                onChange={(e) => setNewBlockedDate(parseInt(e.target.value))}
+                min="1"
+                max="31"
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-end" }}>
+              <button className="btn-add-small" onClick={handleAddBlockedDate}>
+                + Tambah
+              </button>
+            </div>
           </div>
-          <button className="btn-add-small">+ Tambah Tanggal</button>
         </div>
-        <p className="note">💡 Tanggal 10-12 = Libur Keluarga</p>
+
+        <p className="note">
+          Tanggal libur, acara keluarga, atau hari tidak produktif
+        </p>
       </div>
 
+      {/* Proyek/Tugas */}
       <div className="input-section">
-        <h3>📚 Proyek & Ujian Besar</h3>
+        <h3>📝 Daftar Proyek & Tugas</h3>
+
+        {/* Task List */}
         <div className="task-list">
-          {tasks.map((task, idx) => (
-            <div key={idx} className="task-item-monthly">
+          {tasks.map((task, index) => (
+            <div key={index} className="task-item-monthly">
               <div className="task-header-monthly">
-                <strong>{task.name}</strong>
-                <span className={`priority priority-${task.priority}`}>{task.priority}</span>
+                <div className="task-info">
+                  <strong>{task.name}</strong>
+                </div>
+                <button
+                  className="chip-remove"
+                  onClick={() => handleRemoveTask(index)}
+                >
+                  ×
+                </button>
               </div>
               <div className="task-meta">
-                <span>⏱️ {task.hours} jam total</span>
-                <span>📅 Deadline: {task.deadline} Januari</span>
+                <span>⏱️ {task.duration} jam</span>
+                <span>📅 Deadline: Tanggal {task.deadline}</span>
               </div>
             </div>
           ))}
         </div>
-        <button className="btn-add">+ Tambah Proyek/Ujian</button>
+
+        {/* Add New Task */}
+        <div className="input-row">
+          <div className="input-group">
+            <label>Nama Proyek/Tugas</label>
+            <input
+              type="text"
+              value={newTask.name}
+              onChange={(e) =>
+                setNewTask({ ...newTask, name: e.target.value })
+              }
+              placeholder="e.g., Proyek Besar Akhir Semester"
+            />
+          </div>
+          <div className="input-group">
+            <label>Estimasi Durasi (jam)</label>
+            <input
+              type="number"
+              value={newTask.duration}
+              onChange={(e) =>
+                setNewTask({
+                  ...newTask,
+                  duration: parseInt(e.target.value),
+                })
+              }
+              min="1"
+              max="100"
+            />
+          </div>
+        </div>
+
+        <div className="input-group">
+          <label>Deadline (Tanggal dalam Bulan)</label>
+          <input
+            type="number"
+            value={newTask.deadline}
+            onChange={(e) =>
+              setNewTask({ ...newTask, deadline: parseInt(e.target.value) })
+            }
+            min="1"
+            max="31"
+          />
+          <p className="note">Masukkan tanggal 1-31 untuk deadline tugas</p>
+        </div>
+
+        <button className="btn-add" onClick={handleAddTask}>
+          + Tambah Proyek/Tugas
+        </button>
       </div>
 
+      {/* Summary */}
+      {tasks.length > 0 && (
+        <div className="input-section">
+          <div
+            style={{
+              background: "#fff",
+              padding: "16px",
+              borderRadius: "8px",
+              display: "flex",
+              justifyContent: "space-around",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: "12px", color: "#888" }}>
+                Total Proyek
+              </div>
+              <div style={{ fontSize: "20px", fontWeight: "bold" }}>
+                {tasks.length}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: "12px", color: "#888" }}>Total Jam</div>
+              <div style={{ fontSize: "20px", fontWeight: "bold" }}>
+                {tasks.reduce((sum, t) => sum + t.duration, 0)} jam
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: "12px", color: "#888" }}>
+                Hari Terblokir
+              </div>
+              <div style={{ fontSize: "20px", fontWeight: "bold" }}>
+                {config.blockedDates.length} hari
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
       <div className="input-actions">
-        <button className="btn-secondary" onClick={() => router.back()}>Kembali</button>
-        <button className="btn-primary" onClick={handleProcess}>Proses Jadwal →</button>
+        <button
+          className="btn-secondary"
+          onClick={() => router.push("/study-plan")}
+        >
+          ← Kembali
+        </button>
+        <button
+          className="btn-primary"
+          onClick={handleGenerate}
+          disabled={tasks.length === 0}
+        >
+          Generate Jadwal →
+        </button>
       </div>
     </div>
   );
