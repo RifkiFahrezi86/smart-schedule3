@@ -1,59 +1,48 @@
+// app/api/schedule/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
+import { spawn } from "child_process";
 import path from "path";
-
-const execAsync = promisify(exec);
 
 export async function POST(request: NextRequest) {
   try {
-    const { mode, payload } = await request.json();
+    const body = await request.json();
+    const { mode, payload } = body;
 
+    // Validate input
     if (!mode || !payload) {
       return NextResponse.json(
-        { success: false, errors: [{ type: "System", message: "Missing parameters" }] },
+        {
+          success: false,
+          errors: [
+            {
+              type: "Validation",
+              message: "Mode and payload are required",
+            },
+          ],
+        },
         { status: 400 }
       );
     }
 
-    // Path to Python script
-    const pythonScript = path.join(process.cwd(), "python", "main.py");
-    
-    // Prepare payload
-    const payloadJson = JSON.stringify(payload).replace(/"/g, '\\"');
-    
-    // Execute Python script
-    const command = `python3 "${pythonScript}" "${mode}" "${payloadJson}"`;
-    
-    const { stdout, stderr } = await execAsync(command, {
-      maxBuffer: 1024 * 1024 * 10, // 10MB buffer
-    });
-
-    if (stderr && !stdout) {
-      console.error("Python error:", stderr);
-      return NextResponse.json(
-        {
-          success: false,
-          errors: [{ type: "System", message: "Scheduler execution failed" }],
-        },
-        { status: 500 }
-      );
-    }
-
-    // Parse Python output
-    const result = JSON.parse(stdout);
+    // Call Python scheduler
+    const result = await runPythonScheduler(mode, payload);
 
     return NextResponse.json(result);
-  } catch (error: any) {
-    console.error("API error:", error);
+  } catch (error) {
+    console.error("Schedule API Error:", error);
     return NextResponse.json(
       {
         success: false,
         errors: [
           {
             type: "System",
-            message: error.message || "Internal server error",
+            message: error instanceof Error ? error.message : "Internal server error",
           },
+        ],
+        suggestions: [
+          "Periksa koneksi internet Anda",
+          "Coba refresh halaman",
+          "Hubungi admin jika masalah berlanjut",
         ],
       },
       { status: 500 }
@@ -61,9 +50,95 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
-  return NextResponse.json(
-    { message: "Use POST method to run scheduler" },
-    { status: 405 }
-  );
+/**
+ * Run Python scheduler script
+ */
+function runPythonScheduler(mode: string, payload: any): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const pythonPath = process.env.PYTHON_PATH || "python3";
+    const scriptPath = path.join(process.cwd(), "python", "main.py");
+
+    console.log("Running Python scheduler:", { mode, pythonPath, scriptPath });
+
+    const pythonProcess = spawn(pythonPath, [
+      scriptPath,
+      mode,
+      JSON.stringify(payload),
+    ]);
+
+    let dataString = "";
+    let errorString = "";
+
+    pythonProcess.stdout.on("data", (data) => {
+      dataString += data.toString();
+    });
+
+    pythonProcess.stderr.on("data", (data) => {
+      errorString += data.toString();
+      console.error("Python Error:", data.toString());
+    });
+
+    pythonProcess.on("close", (code) => {
+      console.log("Python process closed with code:", code);
+      console.log("Python output:", dataString);
+
+      if (code !== 0) {
+        console.error("Python stderr:", errorString);
+        resolve({
+          success: false,
+          errors: [
+            {
+              type: "Python",
+              message: errorString || "Python script execution failed",
+            },
+          ],
+          suggestions: [
+            "Pastikan Python terinstall dengan benar",
+            "Periksa dependencies Python (datetime)",
+            "Coba jalankan script manual: python3 python/main.py",
+          ],
+        });
+        return;
+      }
+
+      try {
+        const result = JSON.parse(dataString);
+        resolve(result);
+      } catch (parseError) {
+        console.error("JSON Parse Error:", parseError);
+        console.error("Raw output:", dataString);
+        resolve({
+          success: false,
+          errors: [
+            {
+              type: "Parse",
+              message: "Failed to parse Python output",
+            },
+          ],
+          suggestions: [
+            "Periksa format output Python",
+            "Pastikan Python mengembalikan valid JSON",
+          ],
+        });
+      }
+    });
+
+    pythonProcess.on("error", (error) => {
+      console.error("Failed to start Python process:", error);
+      reject({
+        success: false,
+        errors: [
+          {
+            type: "System",
+            message: `Failed to start Python: ${error.message}`,
+          },
+        ],
+        suggestions: [
+          "Pastikan Python terinstall (python3 --version)",
+          "Set PYTHON_PATH di environment variables",
+          "Install Python jika belum ada",
+        ],
+      });
+    });
+  });
 }

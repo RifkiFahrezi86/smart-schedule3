@@ -26,6 +26,12 @@ export default function MonthlyInputPage() {
   // Blocked dates
   const [newBlockedDate, setNewBlockedDate] = useState(1);
 
+  // ✅ FIXED: Safe parseInt
+  const safeParseInt = (value: string, defaultValue: number): number => {
+    const parsed = parseInt(value);
+    return isNaN(parsed) || parsed < 0 ? defaultValue : parsed;
+  };
+
   const handleAddBlockedDate = () => {
     if (
       newBlockedDate >= 1 &&
@@ -136,7 +142,7 @@ export default function MonthlyInputPage() {
             onChange={(e) =>
               setConfig({
                 ...config,
-                maxHoursPerMonth: parseInt(e.target.value),
+                maxHoursPerMonth: safeParseInt(e.target.value, 80)
               })
             }
             min="20"
@@ -175,7 +181,7 @@ export default function MonthlyInputPage() {
               <input
                 type="number"
                 value={newBlockedDate}
-                onChange={(e) => setNewBlockedDate(parseInt(e.target.value))}
+                onChange={(e) => setNewBlockedDate(safeParseInt(e.target.value, 1))}
                 min="1"
                 max="31"
               />
@@ -241,7 +247,7 @@ export default function MonthlyInputPage() {
               onChange={(e) =>
                 setNewTask({
                   ...newTask,
-                  duration: parseInt(e.target.value),
+                  duration: safeParseInt(e.target.value, 10)
                 })
               }
               min="1"
@@ -256,7 +262,10 @@ export default function MonthlyInputPage() {
             type="number"
             value={newTask.deadline}
             onChange={(e) =>
-              setNewTask({ ...newTask, deadline: parseInt(e.target.value) })
+              setNewTask({ 
+                ...newTask, 
+                deadline: safeParseInt(e.target.value, 31)
+              })
             }
             min="1"
             max="31"

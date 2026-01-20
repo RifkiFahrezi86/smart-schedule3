@@ -28,6 +28,12 @@ export default function WeeklyInputPage() {
 
   const allDays = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 
+  // ✅ FIXED: Safe parseInt
+  const safeParseInt = (value: string, defaultValue: number): number => {
+    const parsed = parseInt(value);
+    return isNaN(parsed) || parsed < 0 ? defaultValue : parsed;
+  };
+
   const handleDayToggle = (day: string) => {
     const newActiveDays = config.activeDays.includes(day)
       ? config.activeDays.filter((d) => d !== day)
@@ -105,7 +111,10 @@ export default function WeeklyInputPage() {
               type="number"
               value={config.weeks}
               onChange={(e) =>
-                setConfig({ ...config, weeks: parseInt(e.target.value) })
+                setConfig({ 
+                  ...config, 
+                  weeks: safeParseInt(e.target.value, 2)
+                })
               }
               min="1"
               max="8"
@@ -145,7 +154,7 @@ export default function WeeklyInputPage() {
             onChange={(e) =>
               setConfig({
                 ...config,
-                maxHoursPerWeek: parseInt(e.target.value),
+                maxHoursPerWeek: safeParseInt(e.target.value, 20)
               })
             }
             min="5"
@@ -205,7 +214,7 @@ export default function WeeklyInputPage() {
               onChange={(e) =>
                 setNewTask({
                   ...newTask,
-                  duration: parseInt(e.target.value),
+                  duration: safeParseInt(e.target.value, 6)
                 })
               }
               min="1"

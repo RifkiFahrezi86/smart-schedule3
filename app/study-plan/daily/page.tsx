@@ -62,6 +62,12 @@ export default function DailyInputPage() {
     return `priority priority-${priority}`;
   };
 
+  // ✅ FIXED: Safe parseInt with fallback
+  const safeParseInt = (value: string, defaultValue: number): number => {
+    const parsed = parseInt(value);
+    return isNaN(parsed) ? defaultValue : parsed;
+  };
+
   return (
     <div className="input-container">
       <div className="input-header">
@@ -136,7 +142,10 @@ export default function DailyInputPage() {
               type="number"
               value={config.breakTime}
               onChange={(e) =>
-                setConfig({ ...config, breakTime: parseInt(e.target.value) })
+                setConfig({ 
+                  ...config, 
+                  breakTime: safeParseInt(e.target.value, 15)
+                })
               }
               min="5"
               max="30"
@@ -148,7 +157,10 @@ export default function DailyInputPage() {
               type="number"
               value={config.maxProductive}
               onChange={(e) =>
-                setConfig({ ...config, maxProductive: parseInt(e.target.value) })
+                setConfig({ 
+                  ...config, 
+                  maxProductive: safeParseInt(e.target.value, 360)
+                })
               }
               min="60"
               max="600"
@@ -210,7 +222,7 @@ export default function DailyInputPage() {
               onChange={(e) =>
                 setNewActivity({
                   ...newActivity,
-                  duration: parseInt(e.target.value),
+                  duration: safeParseInt(e.target.value, 60)
                 })
               }
               min="15"
