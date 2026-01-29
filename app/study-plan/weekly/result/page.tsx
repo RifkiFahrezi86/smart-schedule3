@@ -1,13 +1,17 @@
+// app/study-plan/weekly/result/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SuccessIcon, LightbulbIcon, InlineIcon } from "@/components/Icon";
+import Loading from "@/components/Loading";
 import ResultSummary from "@/ui/ResultSummary";
 import type { WeeklyResult } from "@/lib/types";
 
 export default function WeeklyResultPage() {
   const router = useRouter();
   const [result, setResult] = useState<WeeklyResult | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const data = sessionStorage.getItem("weeklyScheduleResult");
@@ -23,10 +27,11 @@ export default function WeeklyResultPage() {
     }
 
     setResult(parsed);
-  }, []);
+    setLoading(false);
+  }, [router]);
 
-  if (!result || !result.data) {
-    return <div>Loading...</div>;
+  if (loading || !result || !result.data) {
+    return <Loading text="Memuat hasil jadwal mingguan..." />;
   }
 
   const { schedule, summary } = result.data;
@@ -65,7 +70,7 @@ export default function WeeklyResultPage() {
   return (
     <div className="result-container">
       <div className="result-header">
-        <div className="result-icon">✅</div>
+        <SuccessIcon size={80} />
         <h1>Jadwal Mingguan Berhasil!</h1>
         <p>Berikut adalah distribusi tugas mingguan yang optimal</p>
       </div>
@@ -74,7 +79,10 @@ export default function WeeklyResultPage() {
 
       {/* Weekly Schedule */}
       <div className="weekly-schedule">
-        <h3>📅 Jadwal Per Minggu</h3>
+        <h3>
+          <InlineIcon name="calendar" size={24} className="mr-2" />
+          Jadwal Per Minggu
+        </h3>
 
         {schedule.map((week, weekIdx) => (
           <div key={weekIdx} className="weekly-section">
@@ -90,8 +98,14 @@ export default function WeeklyResultPage() {
                   <div className="task-info-weekly">
                     <strong>{task.task}</strong>
                     <div className="task-time">
-                      <span>⏱️ {task.hours}</span>
-                      <span>🕐 {task.time}</span>
+                      <span>
+                        <InlineIcon name="clock" size={16} className="mr-1" />
+                        {task.hours}
+                      </span>
+                      <span>
+                        <InlineIcon name="clock" size={16} className="mr-1" />
+                        {task.time}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -103,7 +117,10 @@ export default function WeeklyResultPage() {
 
       {/* Tips */}
       <div className="suggestion-box">
-        <h3>💡 Tips Produktivitas</h3>
+        <h3>
+          <LightbulbIcon size={24} className="mr-2" />
+          Tips Produktivitas
+        </h3>
         <ul>
           <li>Ikuti jadwal yang sudah dibuat untuk hasil maksimal</li>
           <li>Gunakan waktu break untuk istirahat sejenak</li>
@@ -120,10 +137,12 @@ export default function WeeklyResultPage() {
           className="btn-secondary"
           onClick={() => router.push("/study-plan/weekly")}
         >
-          ← Buat Ulang
+          <InlineIcon name="arrow-left" size={20} className="mr-2" />
+          Buat Ulang
         </button>
         <button className="btn-primary" onClick={handleSave}>
-          💾 Simpan Jadwal
+          <InlineIcon name="save" size={20} className="mr-2" />
+          Simpan Jadwal
         </button>
       </div>
     </div>

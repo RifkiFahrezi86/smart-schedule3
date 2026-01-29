@@ -66,9 +66,10 @@ export function validateDailyInput(
     errors.push("Personal time is required");
   }
 
-  if (!config.breakTime || config.breakTime < 0) {
-    errors.push("Break time must be positive");
-  }
+    if (config.breakTime < 0) {
+      errors.push("Break time cannot be negative");
+    }
+
 
   if (!config.maxProductive || config.maxProductive < 0) {
     errors.push("Max productive time must be positive");

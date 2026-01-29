@@ -1,7 +1,10 @@
+// app/study-plan/daily/result/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SuccessIcon, InlineIcon } from "@/components/Icon";
+import Loading from "@/components/Loading";
 import Timeline from "@/ui/Timeline";
 import ResultSummary from "@/ui/ResultSummary";
 import type { DailyResult } from "@/lib/types";
@@ -9,6 +12,7 @@ import type { DailyResult } from "@/lib/types";
 export default function DailyResultPage() {
   const router = useRouter();
   const [result, setResult] = useState<DailyResult | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const data = sessionStorage.getItem("dailyScheduleResult");
@@ -24,10 +28,11 @@ export default function DailyResultPage() {
     }
 
     setResult(parsed);
-  }, []);
+    setLoading(false);
+  }, [router]);
 
-  if (!result || !result.data) {
-    return <div>Loading...</div>;
+  if (loading || !result || !result.data) {
+    return <Loading text="Memuat hasil jadwal..." />;
   }
 
   const { schedule, summary } = result.data;
@@ -66,7 +71,7 @@ export default function DailyResultPage() {
   return (
     <div className="result-container">
       <div className="result-header">
-        <div className="result-icon">✅</div>
+        <SuccessIcon size={80} />
         <h1>Jadwal Berhasil Dibuat!</h1>
         <p>Berikut adalah jadwal optimal untuk hari Anda</p>
       </div>
@@ -76,11 +81,16 @@ export default function DailyResultPage() {
       <Timeline schedule={schedule} />
 
       <div className="result-actions">
-        <button className="btn-secondary" onClick={() => router.push("/study-plan/daily")}>
-          ← Buat Ulang
+        <button 
+          className="btn-secondary" 
+          onClick={() => router.push("/study-plan/daily")}
+        >
+          <InlineIcon name="arrow-left" size={20} className="mr-2" />
+          Buat Ulang
         </button>
         <button className="btn-primary" onClick={handleSave}>
-          💾 Simpan Jadwal
+          <InlineIcon name="save" size={20} className="mr-2" />
+          Simpan Jadwal
         </button>
       </div>
     </div>

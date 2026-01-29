@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import CalendarView from "@/ui/CalendarView";
 import AddEventModal from "@/ui/AddEventModal";
+import { LoadingSpinner } from "@/components/Loading";
 import type { ImportantDate } from "@/lib/types";
+import Image from "next/image";
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -85,7 +87,16 @@ export default function CalendarPage() {
   return (
     <div className="calendar-page">
       <div className="calendar-header-bar">
-        <h1 className="page-title">📅 Calendar</h1>
+        <h1 className="page-title">
+          <Image 
+            src="/icons/calendar.svg" 
+            alt="Calendar" 
+            width={42} 
+            height={42}
+            style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '12px' }}
+          />
+          Calendar
+        </h1>
         <p className="page-subtitle">
           Tandai tanggal penting untuk deadline, ujian, dan acara lainnya
         </p>
@@ -93,8 +104,8 @@ export default function CalendarPage() {
 
       {loading ? (
         <div className="loading-container">
-          <div className="spinner">⏳</div>
-          <p>Loading calendar...</p>
+          <LoadingSpinner size="large" />
+          <p className="loading-text">Loading calendar...</p>
         </div>
       ) : (
         <CalendarView
@@ -107,7 +118,16 @@ export default function CalendarPage() {
 
       {/* Event List */}
       <div className="upcoming-events">
-        <h3>📌 Upcoming Important Dates</h3>
+        <h3>
+          <Image 
+            src="/icons/calendar.svg" 
+            alt="" 
+            width={24} 
+            height={24}
+            style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }}
+          />
+          Upcoming Important Dates
+        </h3>
         {importantDates.length === 0 ? (
           <p className="no-events">
             No important dates this month. Click on a date to add one!

@@ -1,7 +1,9 @@
+// app/study-plan/monthly/result/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SuccessIcon, LightbulbIcon, InlineIcon, CalendarCheckIcon } from "@/components/Icon";
 import ResultSummary from "@/ui/ResultSummary";
 import type { MonthlyResult } from "@/lib/types";
 
@@ -23,10 +25,15 @@ export default function MonthlyResultPage() {
     }
 
     setResult(parsed);
-  }, []);
+  }, [router]);
 
   if (!result || !result.data) {
-    return <div>Loading...</div>;
+    return (
+      <div className="loading-container">
+        <div className="spinner">⚙️</div>
+        <div className="loading-text">Loading...</div>
+      </div>
+    );
   }
 
   const { schedule, summary } = result.data;
@@ -65,7 +72,7 @@ export default function MonthlyResultPage() {
   return (
     <div className="result-container">
       <div className="result-header">
-        <div className="result-icon">✅</div>
+        <SuccessIcon size={80} />
         <h1>Jadwal Bulanan Berhasil!</h1>
         <p>Berikut adalah perencanaan proyek bulanan yang optimal</p>
       </div>
@@ -74,7 +81,10 @@ export default function MonthlyResultPage() {
 
       {/* Monthly Calendar */}
       <div className="monthly-calendar">
-        <h3>📅 Jadwal Per Minggu</h3>
+        <h3>
+          <CalendarCheckIcon size={24} className="mr-2" />
+          Jadwal Per Minggu
+        </h3>
 
         {schedule.map((week, weekIdx) => (
           <div key={weekIdx} className="calendar-week">
@@ -107,7 +117,10 @@ export default function MonthlyResultPage() {
 
       {/* Tips */}
       <div className="suggestion-box">
-        <h3>💡 Tips Manajemen Proyek</h3>
+        <h3>
+          <LightbulbIcon size={24} className="mr-2" />
+          Tips Manajemen Proyek
+        </h3>
         <ul>
           <li>Pecah proyek besar menjadi milestone kecil untuk tracking lebih baik</li>
           <li>Review progress setiap minggu dan sesuaikan jadwal jika perlu</li>
@@ -121,17 +134,29 @@ export default function MonthlyResultPage() {
       <div style={{ background: "#fff", padding: "24px", borderRadius: "12px", marginBottom: "32px" }}>
         <h3 style={{ marginBottom: "16px" }}>📊 Ringkasan Bulanan</h3>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-          <div>
-            <strong>Total Proyek:</strong> {schedule.reduce((sum, w) => sum + w.tasks.length, 0)}
+          <div style={{ padding: "12px", background: "#f9f9f9", borderRadius: "8px" }}>
+            <div style={{ fontSize: "13px", color: "#666", marginBottom: "4px" }}>Total Proyek</div>
+            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#333" }}>
+              {schedule.reduce((sum, w) => sum + w.tasks.length, 0)}
+            </div>
           </div>
-          <div>
-            <strong>Minggu Aktif:</strong> {schedule.filter(w => w.tasks.length > 0).length}
+          <div style={{ padding: "12px", background: "#f9f9f9", borderRadius: "8px" }}>
+            <div style={{ fontSize: "13px", color: "#666", marginBottom: "4px" }}>Minggu Aktif</div>
+            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#333" }}>
+              {schedule.filter(w => w.tasks.length > 0).length}
+            </div>
           </div>
-          <div>
-            <strong>Beban Terberat:</strong> Minggu {schedule.findIndex(w => w.tasks.length === Math.max(...schedule.map(s => s.tasks.length))) + 1}
+          <div style={{ padding: "12px", background: "#f9f9f9", borderRadius: "8px" }}>
+            <div style={{ fontSize: "13px", color: "#666", marginBottom: "4px" }}>Beban Terberat</div>
+            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#333" }}>
+              Minggu {schedule.findIndex(w => w.tasks.length === Math.max(...schedule.map(s => s.tasks.length))) + 1}
+            </div>
           </div>
-          <div>
-            <strong>Estimasi Selesai:</strong> {schedule[schedule.length - 1].weekLabel.split('(')[1].split(')')[0].split('-')[1]}
+          <div style={{ padding: "12px", background: "#f9f9f9", borderRadius: "8px" }}>
+            <div style={{ fontSize: "13px", color: "#666", marginBottom: "4px" }}>Estimasi Selesai</div>
+            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#333" }}>
+              {schedule[schedule.length - 1]?.weekLabel.split('(')[1]?.split(')')[0]?.split('-')[1] || 'N/A'}
+            </div>
           </div>
         </div>
       </div>
@@ -141,10 +166,12 @@ export default function MonthlyResultPage() {
           className="btn-secondary"
           onClick={() => router.push("/study-plan/monthly")}
         >
-          ← Buat Ulang
+          <InlineIcon name="arrow-left" size={20} className="mr-2" />
+          Buat Ulang
         </button>
         <button className="btn-primary" onClick={handleSave}>
-          💾 Simpan Jadwal
+          <InlineIcon name="save" size={20} className="mr-2" />
+          Simpan Jadwal
         </button>
       </div>
     </div>

@@ -4,18 +4,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MonthlyConfig, MonthlyTask } from "@/lib/types";
 import { validateMonthlyInput } from "@/lib/scheduler";
+import { InlineIcon } from "@/components/Icon";
 
 export default function MonthlyInputPage() {
   const router = useRouter();
 
-  // Config state
   const [config, setConfig] = useState<MonthlyConfig>({
     startDate: new Date().toISOString().split("T")[0],
     maxHoursPerMonth: 80,
     blockedDates: [],
   });
 
-  // Tasks state
   const [tasks, setTasks] = useState<MonthlyTask[]>([]);
   const [newTask, setNewTask] = useState({
     name: "",
@@ -23,10 +22,8 @@ export default function MonthlyInputPage() {
     deadline: 31,
   });
 
-  // Blocked dates
   const [newBlockedDate, setNewBlockedDate] = useState(1);
 
-  // ✅ FIXED: Safe parseInt
   const safeParseInt = (value: string, defaultValue: number): number => {
     const parsed = parseInt(value);
     return isNaN(parsed) || parsed < 0 ? defaultValue : parsed;
@@ -78,7 +75,6 @@ export default function MonthlyInputPage() {
       return;
     }
 
-    // Store in sessionStorage
     sessionStorage.setItem(
       "monthlyScheduleData",
       JSON.stringify({ config, tasks })
@@ -90,18 +86,8 @@ export default function MonthlyInputPage() {
   const getMonthName = (dateStr: string) => {
     const date = new Date(dateStr);
     const months = [
-      "Januari",
-      "Februari",
-      "Maret",
-      "April",
-      "Mei",
-      "Juni",
-      "Juli",
-      "Agustus",
-      "September",
-      "Oktober",
-      "November",
-      "Desember",
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember",
     ];
     return `${months[date.getMonth()]} ${date.getFullYear()}`;
   };
@@ -109,13 +95,19 @@ export default function MonthlyInputPage() {
   return (
     <div className="input-container">
       <div className="input-header">
-        <h1>📊 MONTHLY SCHEDULE</h1>
+        <h1>
+          <InlineIcon name="bar-chart" size={32} className="mr-2" />
+          MONTHLY SCHEDULE
+        </h1>
         <p>Perencanaan proyek dan tugas besar jangka panjang</p>
       </div>
 
       {/* Periode */}
       <div className="input-section">
-        <h3>📅 Bulan Penjadwalan</h3>
+        <h3>
+          <InlineIcon name="calendar" size={20} className="mr-2" />
+          Bulan Penjadwalan
+        </h3>
         <div className="input-group">
           <label>Pilih Bulan</label>
           <input
@@ -133,7 +125,10 @@ export default function MonthlyInputPage() {
 
       {/* Kapasitas */}
       <div className="input-section">
-        <h3>⚡ Kapasitas Bulanan</h3>
+        <h3>
+          <InlineIcon name="zap" size={20} className="mr-2" />
+          Kapasitas Bulanan
+        </h3>
         <div className="input-group">
           <label>Max Jam per Bulan</label>
           <input
@@ -156,7 +151,10 @@ export default function MonthlyInputPage() {
 
       {/* Tanggal Terblokir */}
       <div className="input-section">
-        <h3>🚫 Tanggal Tidak Tersedia</h3>
+        <h3>
+          <InlineIcon name="x-circle" size={20} className="mr-2" />
+          Tanggal Tidak Tersedia
+        </h3>
 
         <div className="blocked-dates">
           {config.blockedDates.length > 0 && (
@@ -201,7 +199,10 @@ export default function MonthlyInputPage() {
 
       {/* Proyek/Tugas */}
       <div className="input-section">
-        <h3>📝 Daftar Proyek & Tugas</h3>
+        <h3>
+          <InlineIcon name="edit" size={20} className="mr-2" />
+          Daftar Proyek & Tugas
+        </h3>
 
         {/* Task List */}
         <div className="task-list">
@@ -219,8 +220,14 @@ export default function MonthlyInputPage() {
                 </button>
               </div>
               <div className="task-meta">
-                <span>⏱️ {task.duration} jam</span>
-                <span>📅 Deadline: Tanggal {task.deadline}</span>
+                <span>
+                  <InlineIcon name="clock" size={14} className="mr-1" />
+                  {task.duration} jam
+                </span>
+                <span>
+                  <InlineIcon name="calendar" size={14} className="mr-1" />
+                  Deadline: Tanggal {task.deadline}
+                </span>
               </div>
             </div>
           ))}

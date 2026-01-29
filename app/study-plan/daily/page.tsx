@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DailyConfig, DailyActivity } from "@/lib/types";
 import { validateDailyInput } from "@/lib/scheduler";
+import { InlineIcon } from "@/components/Icon";
 
 export default function DailyInputPage() {
   const router = useRouter();
 
-  // Config state
   const [config, setConfig] = useState<DailyConfig>({
     startTime: "08:00",
     endTime: "16:00",
@@ -18,7 +18,6 @@ export default function DailyInputPage() {
     maxProductive: 360,
   });
 
-  // Activities state
   const [activities, setActivities] = useState<DailyActivity[]>([]);
   const [newActivity, setNewActivity] = useState({
     name: "",
@@ -49,7 +48,6 @@ export default function DailyInputPage() {
       return;
     }
 
-    // Store in sessionStorage
     sessionStorage.setItem(
       "dailyScheduleData",
       JSON.stringify({ config, activities })
@@ -62,7 +60,6 @@ export default function DailyInputPage() {
     return `priority priority-${priority}`;
   };
 
-  // ✅ FIXED: Safe parseInt with fallback
   const safeParseInt = (value: string, defaultValue: number): number => {
     const parsed = parseInt(value);
     return isNaN(parsed) ? defaultValue : parsed;
@@ -71,13 +68,19 @@ export default function DailyInputPage() {
   return (
     <div className="input-container">
       <div className="input-header">
-        <h1>⏰ DAILY SCHEDULE</h1>
+        <h1>
+          <InlineIcon name="clock" size={32} className="mr-2" />
+          DAILY SCHEDULE
+        </h1>
         <p>Atur jadwal harian yang optimal untuk produktivitas maksimal</p>
       </div>
 
       {/* Waktu Aktif */}
       <div className="input-section">
-        <h3>📅 Waktu Aktif</h3>
+        <h3>
+          <InlineIcon name="calendar" size={20} className="mr-2" />
+          Waktu Aktif
+        </h3>
         <div className="input-row">
           <div className="input-group">
             <label>Start Time</label>
@@ -104,7 +107,10 @@ export default function DailyInputPage() {
 
       {/* Personal Time */}
       <div className="input-section">
-        <h3>🍽️ Personal Time</h3>
+        <h3>
+          <InlineIcon name="utensils" size={20} className="mr-2" />
+          Personal Time
+        </h3>
         <div className="input-row">
           <div className="input-group">
             <label>Start Personal</label>
@@ -134,7 +140,10 @@ export default function DailyInputPage() {
 
       {/* Produktivitas */}
       <div className="input-section">
-        <h3>⚡ Produktivitas</h3>
+        <h3>
+          <InlineIcon name="zap" size={20} className="mr-2" />
+          Produktivitas
+        </h3>
         <div className="input-row">
           <div className="input-group">
             <label>Break Time (menit)</label>
@@ -174,7 +183,10 @@ export default function DailyInputPage() {
 
       {/* Aktivitas */}
       <div className="input-section">
-        <h3>📝 Aktivitas Harian</h3>
+        <h3>
+          <InlineIcon name="edit" size={20} className="mr-2" />
+          Aktivitas Harian
+        </h3>
 
         {/* Activity List */}
         <div className="task-list">

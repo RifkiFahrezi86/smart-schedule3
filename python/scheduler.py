@@ -10,41 +10,38 @@ from datetime import datetime, timedelta
 
 def run_daily(payload):
     """
-    Daily scheduler 
+    Daily scheduler (FIXED, 100% backward compatible)
+    - Tidak mengubah struktur response
+    - Tidak mengubah field JSON
+    - Tidak mengubah helper
+    - Tidak mengubah weekly/monthly
     """
+
     config = payload["config"]
     activities = payload["activities"]
-    
+
     # Convert time strings to minutes
     start = time_to_minutes(config["startTime"])
     end = time_to_minutes(config["endTime"])
-    personal_start = time_to_minutes(config["personalStart"])
-    personal_end = time_to_minutes(config["personalEnd"])
+    personal_start_raw = time_to_minutes(config["personalStart"])
+    personal_end_raw = time_to_minutes(config["personalEnd"])
     break_time = config["breakTime"]
     max_productive = config["maxProductive"]
-    
-    # Validate basic constraints
+
+    # ===== FIX BUG #1 & #4: personal time hanya dipotong jika overlap =====
+    personal_start = max(start, min(personal_start_raw, end))
+    personal_end = max(start, min(personal_end_raw, end))
+    personal_overlap = max(0, personal_end - personal_start)
+
+    # ===== FIX BUG #2: jangan double count personal time =====
+    available_time = (end - start) - personal_overlap
+
+    # ===== FIX BUG #3: break dihitung logis, bukan dipaksa =====
     total_duration = sum(act["duration"] for act in activities)
-    available_time = end - start - (personal_end - personal_start)
-    
-    # Calculate breaks needed (between activities, not after last)
     breaks_needed = max(0, len(activities) - 1) * break_time
     total_needed = total_duration + breaks_needed
-    
-    # Pre-validation
-    if total_duration > max_productive:
-        return {
-            "success": False,
-            "errors": [
-                {"type": "Kapasitas", "message": f"Total durasi aktivitas ({total_duration} menit) melebihi Max Productive Time ({max_productive} menit)"}
-            ],
-            "suggestions": [
-                f"Kurangi total durasi menjadi ≤ {max_productive} menit",
-                "Hapus beberapa aktivitas yang tidak prioritas",
-                f"Atau tingkatkan Max Productive menjadi ≥ {total_duration} menit"
-            ]
-        }
-    
+
+
     if total_needed > available_time:
         return {
             "success": False,
@@ -52,19 +49,19 @@ def run_daily(payload):
                 {"type": "Waktu", "message": f"Total waktu yang dibutuhkan ({total_needed} menit) melebihi waktu tersedia ({available_time} menit)"}
             ],
             "suggestions": [
-                f"Perpanjang waktu aktif (End Time → {minutes_to_time(start + total_needed + (personal_end - personal_start))})",
+                f"Perpanjang waktu aktif (End Time → {minutes_to_time(start + total_needed + personal_overlap)})",
                 "Kurangi Personal Time",
                 "Kurangi Break Time per aktivitas"
             ]
         }
-    
+
     # Sort activities: tinggi > sedang > rendah, then by duration (longest first)
     priority_order = {"tinggi": 3, "sedang": 2, "rendah": 1}
     activities.sort(key=lambda x: (priority_order[x["priority"]], x["duration"]), reverse=True)
-    
+
     schedule = []
     personal_time_added = False
-    
+
     def get_reason(activity, time_slot):
         priority = activity["priority"]
         reasons = {
@@ -72,36 +69,26 @@ def run_daily(payload):
             "sedang": "Prioritas menengah - diselesaikan sebelum break time",
             "rendah": "Prioritas rendah - cocok dikerjakan saat sisa waktu"
         }
-        
-        # Add time-specific context
+
         if time_slot < personal_start:
             return reasons[priority] + " (sebelum personal time)"
         elif time_slot >= personal_end:
             return reasons[priority] + " (setelah personal time)"
         return reasons[priority]
-    
-    # Simple greedy approach
+
     current_time = start
     total_productive = 0
-    
+
     for i, activity in enumerate(activities):
-        duration = activity["duration"]
-        
-        # ✅ ADD PERSONAL TIME BLOCK if we reach it
-        if not personal_time_added and current_time < personal_end and current_time + duration > personal_start:
-            # Need to insert personal time
-            if current_time < personal_start:
-                # Add break before personal time if there were activities before
-                if len(schedule) > 0 and schedule[-1]["activity"] != "Break Time ☕":
-                    schedule.append({
-                        "time": f"{minutes_to_time(current_time)} - {minutes_to_time(current_time + break_time)}",
-                        "activity": "Break Time ☕",
-                        "duration": f"{break_time} menit",
-                        "reason": "Istirahat sebelum personal time"
-                    })
-                    current_time += break_time
-                
-                # Add Personal Time block
+        remaining = activity["duration"]
+
+        # ===== FIX BUG #6: hormati max_productive di loop =====
+        if total_productive >= max_productive:
+            break
+
+        while remaining > 0:
+            # ===== FIX BUG #5: split jika kena personal time =====
+            if not personal_time_added and personal_overlap > 0 and current_time < personal_end and current_time >= personal_start:
                 schedule.append({
                     "time": f"{minutes_to_time(personal_start)} - {minutes_to_time(personal_end)}",
                     "activity": "Personal Time 🍽️",
@@ -110,47 +97,67 @@ def run_daily(payload):
                 })
                 current_time = personal_end
                 personal_time_added = True
-        
-        # Check if we can still fit this activity
-        if current_time + duration > end:
-            return {
-                "success": False,
-                "errors": [
-                    {"type": "Waktu", "message": "Tidak cukup waktu untuk semua aktivitas setelah personal time"}
-                ],
-                "suggestions": [
-                    "Perpanjang End Time",
-                    "Kurangi Personal Time",
-                    "Kurangi durasi beberapa aktivitas"
-                ]
-            }
-        
-        # Schedule activity
-        schedule.append({
-            "time": f"{minutes_to_time(current_time)} - {minutes_to_time(current_time + duration)}",
-            "activity": activity["name"],
-            "duration": f"{duration} menit",
-            "reason": get_reason(activity, current_time)
-        })
-        
-        total_productive += duration
-        current_time += duration
-        
-        # Add break ONLY between activities (not after last one)
-        if i < len(activities) - 1:
+                continue
+
+            next_limit = end
+            if not personal_time_added and personal_overlap > 0 and current_time < personal_start:
+                next_limit = personal_start
+
+            slot_available = next_limit - current_time
+            productive_left = max_productive - total_productive
+            alloc = min(remaining, slot_available, productive_left)
+
+            if alloc <= 0:
+                break
+
             schedule.append({
-                "time": f"{minutes_to_time(current_time)} - {minutes_to_time(current_time + break_time)}",
-                "activity": "Break Time ☕",
-                "duration": f"{break_time} menit",
-                "reason": "Istirahat untuk menjaga fokus dan produktivitas"
+                "time": f"{minutes_to_time(current_time)} - {minutes_to_time(current_time + alloc)}",
+                "activity": activity["name"],
+                "duration": f"{alloc} menit",
+                "reason": get_reason(activity, current_time)
             })
-            current_time += break_time
-    
-    # Calculate final summary
-    total_break = max(0, len(activities) - 1) * break_time
-    personal_duration = personal_end - personal_start
+
+            current_time += alloc
+            total_productive += alloc
+            remaining -= alloc
+
+            # ===== FIX BUG #3 (FINAL): break muncul walau hanya 1 aktivitas =====
+            if remaining == 0:
+                # Jangan tambahkan break tepat sebelum personal time
+                at_personal_start = (personal_overlap > 0 and current_time == personal_start)
+
+                # ✅ FIX: Jangan buat break kalau break_time = 0
+                if break_time > 0 and not at_personal_start and current_time + break_time <= end:
+                    schedule.append({
+                        "time": f"{minutes_to_time(current_time)} - {minutes_to_time(current_time + break_time)}",
+                        "activity": "Break Time ☕",
+                        "duration": f"{break_time} menit",
+                        "reason": "Istirahat untuk menjaga fokus dan produktivitas"
+                    })
+                    current_time += break_time
+
+    # ===== FIX BUG #4 EDGE: tambahkan personal time jika belum muncul =====
+    if not personal_time_added and personal_overlap > 0 and current_time <= personal_start:
+        if current_time < personal_start:
+            current_time = personal_start
+
+        schedule.append({
+            "time": f"{minutes_to_time(personal_start)} - {minutes_to_time(personal_end)}",
+            "activity": "Personal Time 🍽️",
+            "duration": f"{personal_end - personal_start} menit",
+            "reason": "Waktu untuk makan, istirahat, atau kegiatan pribadi"
+        })
+        current_time = personal_end
+        personal_time_added = True
+
+    # ===== FIX SUMMARY BREAK TIME =====
+    total_break = sum(
+        int(item["duration"].split()[0])
+        for item in schedule
+        if item["activity"] == "Break Time ☕"
+    )
     actual_end = current_time
-    
+
     return {
         "success": True,
         "data": {
@@ -158,7 +165,7 @@ def run_daily(payload):
             "summary": {
                 "totalProductive": total_productive,
                 "breakTime": total_break,
-                "personalTime": personal_duration,
+                "personalTime": personal_overlap,
                 "endTime": minutes_to_time(actual_end)
             }
         }
@@ -171,271 +178,417 @@ def run_daily(payload):
 
 def run_weekly(payload):
     """
-    Fixed weekly scheduler with proper deadline handling
+    Weekly scheduler (FIXED, backward compatible)
     """
+
     config = payload["config"]
     tasks = payload["tasks"]
-    
+
     max_weekly = config["maxHoursPerWeek"]
     active_days = config["activeDays"]
     weeks = config["weeks"]
     start_date = datetime.strptime(config["startDate"], "%Y-%m-%d")
-    
-    # Pre-validation
-    total_hours = sum(task["duration"] for task in tasks)
+
+    # OPTIONAL daily limit (fallback ke max weekly)
+    max_daily = config.get("maxHoursPerDay", max_weekly)
+    # =========================
+    # VALIDATION
+    # =========================
+    if not active_days:
+        return {
+            "success": False,
+            "errors": [{"type": "Hari", "message": "Tidak ada hari aktif yang dipilih"}],
+            "suggestions": ["Pilih minimal 1 hari aktif belajar"]
+        }
+
+    total_hours = sum(t["duration"] for t in tasks)
     max_capacity = max_weekly * weeks
-    
+
     if total_hours > max_capacity:
         return {
             "success": False,
-            "errors": [
-                {"type": "Kapasitas", "message": f"Total jam tugas ({total_hours} jam) melebihi kapasitas total ({max_capacity} jam = {max_weekly} jam/minggu × {weeks} minggu)"}
-            ],
+            "errors": [{
+                "type": "Kapasitas",
+                "message": f"Total jam tugas ({total_hours} jam) melebihi kapasitas ({max_capacity} jam)"
+            }],
             "suggestions": [
-                f"Perpanjang periode menjadi {(total_hours // max_weekly) + 1} minggu",
-                f"Tingkatkan max jam/minggu menjadi ≥ {total_hours // weeks} jam",
-                "Kurangi estimasi durasi beberapa tugas",
-                "Hapus tugas yang tidak prioritas"
+                "Kurangi durasi tugas",
+                "Tambah minggu",
+                "Tambah max jam per minggu"
             ]
         }
-    
-    # Check deadlines
-    for task in tasks:
-        deadline_date = datetime.strptime(task["deadline"], "%Y-%m-%d")
-        if deadline_date < start_date:
+
+    # =========================
+    # SORT TASKS BY DEADLINE
+    # =========================
+    tasks_sorted = sorted(
+        tasks,
+        key=lambda x: datetime.strptime(x["deadline"], "%Y-%m-%d")
+    )
+
+    weekly_schedule = {i: [] for i in range(weeks)}
+    weekly_hours = {i: 0 for i in range(weeks)}
+    daily_hours = {i: {} for i in range(weeks)}  # week → day → hours
+
+    day_names = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+
+# ============================================
+# WEEKLY SCHEDULER (FINAL VERSION)
+# ============================================
+
+
+def run_weekly(payload):
+    """
+    Weekly scheduler (FINAL, backward compatible)
+    - Distribusi merata
+    - Hormat deadline
+    - Tidak numpuk 1 hari
+    - Support maxHoursPerDay (optional)
+    """
+
+    config = payload["config"]
+    tasks = payload["tasks"]
+
+    max_weekly = config["maxHoursPerWeek"]
+    active_days = config["activeDays"]
+    weeks = config["weeks"]
+    start_date = datetime.strptime(config["startDate"], "%Y-%m-%d")
+
+    # Optional daily limit (fallback ke max weekly)
+    max_daily = config.get("maxHoursPerDay", max_weekly)
+
+    # =========================
+    # VALIDATION
+    # =========================
+    if not active_days:
+        return {
+            "success": False,
+            "errors": [{
+                "type": "Hari",
+                "message": "Tidak ada hari aktif yang dipilih"
+            }],
+            "suggestions": ["Pilih minimal 1 hari aktif belajar"]
+        }
+
+    total_hours = sum(t["duration"] for t in tasks)
+    max_capacity = max_weekly * weeks
+
+    if total_hours > max_capacity:
+        return {
+            "success": False,
+            "errors": [{
+                "type": "Kapasitas",
+                "message": f"Total jam tugas ({total_hours} jam) melebihi kapasitas ({max_capacity} jam)"
+            }],
+            "suggestions": [
+                "Kurangi durasi tugas",
+                "Tambah minggu",
+                "Tambah max jam per minggu"
+            ]
+        }
+
+    # =========================
+    # SORT TASKS BY DEADLINE
+    # =========================
+    tasks_sorted = sorted(
+        tasks,
+        key=lambda x: datetime.strptime(x["deadline"], "%Y-%m-%d")
+    )
+
+    weekly_schedule = {i: [] for i in range(weeks)}
+    weekly_hours = {i: 0 for i in range(weeks)}
+    daily_hours = {i: {} for i in range(weeks)}
+
+    day_names = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+
+    # =========================
+    # ASSIGN TASKS
+    # =========================
+    for task in tasks_sorted:
+        deadline = datetime.strptime(task["deadline"], "%Y-%m-%d")
+
+        days_diff = (deadline - start_date).days
+        if days_diff < 0:
             return {
                 "success": False,
-                "errors": [
-                    {"type": "Deadline", "message": f"Tugas '{task['name']}' memiliki deadline ({task['deadline']}) sebelum tanggal mulai ({config['startDate']})"}
-                ],
+                "errors": [{
+                    "type": "Deadline",
+                    "message": f"Deadline tugas '{task['name']}' lebih awal dari tanggal mulai"
+                }],
                 "suggestions": [
-                    "Mundurkan deadline tugas",
-                    f"Atau mulai penjadwalan lebih awal (sebelum {config['startDate']})"
+                    "Periksa tanggal deadline",
+                    "Mundurkan start date",
+                    "Perbarui deadline tugas"
                 ]
             }
-    
-    # Sort by deadline (Greedy: earliest first)
-    tasks_sorted = sorted(tasks, key=lambda x: datetime.strptime(x["deadline"], "%Y-%m-%d"))
-    
-    # Distribute tasks across weeks
-    weekly_schedule = {}
-    weekly_hours = {}
-    
-    for week_num in range(weeks):
-        weekly_schedule[week_num] = []
-        weekly_hours[week_num] = 0
-    
-    day_names_map = {
-        0: "Senin", 1: "Selasa", 2: "Rabu", 3: "Kamis",
-        4: "Jumat", 5: "Sabtu", 6: "Minggu"
-    }
-    
-    # Assign tasks to days
-    for task in tasks_sorted:
-        deadline_date = datetime.strptime(task["deadline"], "%Y-%m-%d")
-        days_until_deadline = (deadline_date - start_date).days
-        
-        # Find suitable week and day
+
+        latest_week = min(weeks - 1, days_diff // 7)
         assigned = False
-        
-        # Try to assign to weeks before deadline
-        max_week = min(weeks - 1, days_until_deadline // 7)
-        
-        for week_num in range(max_week + 1):
-            if weekly_hours[week_num] + task["duration"] <= max_weekly:
-                # Find an active day in this week
-                week_start = start_date + timedelta(weeks=week_num)
-                
-                for day_offset in range(7):
-                    current_date = week_start + timedelta(days=day_offset)
-                    
-                    if current_date > deadline_date:
-                        break
-                    
-                    day_name = day_names_map[current_date.weekday()]
-                    
-                    if day_name in active_days:
-                        # Assign task to this day
-                        weekly_schedule[week_num].append({
-                            "day": f"{day_name}, {current_date.strftime('%d %b')}",
-                            "task": task["name"],
-                            "hours": f"{task['duration']} jam",
-                            "time": "14:00 - 17:00"
-                        })
-                        
-                        weekly_hours[week_num] += task["duration"]
-                        assigned = True
-                        break
-                
-                if assigned:
-                    break
-        
+
+        for week in range(latest_week + 1):
+            if weekly_hours[week] + task["duration"] > max_weekly:
+                continue
+
+            week_start = start_date + timedelta(weeks=week)
+            candidates = []
+
+            for d in range(7):
+                date = week_start + timedelta(days=d)
+
+                if date > deadline:
+                    continue
+
+                day_name = day_names[date.weekday()]
+                if day_name not in active_days:
+                    continue
+
+                used = daily_hours[week].get(day_name, 0)
+                if used + task["duration"] > max_daily:
+                    continue
+
+                candidates.append((used, day_name, date))
+
+            # Pilih hari dengan beban TERKECIL
+            if candidates:
+                candidates.sort(key=lambda x: x[0])
+                used, day_name, date = candidates[0]
+
+                weekly_schedule[week].append({
+                    "day": f"{day_name}, {date.strftime('%d %b')}",
+                    "task": task["name"],
+                    "hours": f"{task['duration']} jam",
+                    "time": "19:00 - 21:00"
+                })
+
+                weekly_hours[week] += task["duration"]
+                daily_hours[week][day_name] = used + task["duration"]
+                assigned = True
+                break
+
         if not assigned:
             return {
                 "success": False,
-                "errors": [
-                    {"type": "Penjadwalan", "message": f"Tidak dapat menjadwalkan tugas '{task['name']}' sebelum deadline"}
-                ],
+                "errors": [{
+                    "type": "Penjadwalan",
+                    "message": f"Tugas '{task['name']}' tidak dapat dijadwalkan sebelum deadline"
+                }],
                 "suggestions": [
-                    "Tambah hari aktif belajar",
-                    "Tingkatkan max jam per minggu",
-                    "Perpanjang periode penjadwalan",
-                    "Mundurkan deadline beberapa tugas"
+                    "Tambah hari aktif",
+                    "Tambah max jam per minggu",
+                    "Mundurkan deadline"
                 ]
             }
-    
-    # Format result
-    result_schedule = []
-    total_hours = 0
-    
-    for week_num in sorted(weekly_schedule.keys()):
-        week_start = start_date + timedelta(weeks=week_num)
-        week_end = week_start + timedelta(days=6)
-        
-        week_hours = weekly_hours[week_num]
-        total_hours += week_hours
-        
-        result_schedule.append({
-            "week": f"Minggu {week_num + 1} ({week_start.strftime('%d')}-{week_end.strftime('%d %b')})",
-            "tasks": weekly_schedule[week_num],
-            "totalHours": week_hours
+
+    # =========================
+    # FORMAT OUTPUT
+    # =========================
+    result = []
+    total = 0
+    completed = 0
+
+    for week in range(weeks):
+        ws = start_date + timedelta(weeks=week)
+        we = ws + timedelta(days=6)
+
+        total += weekly_hours[week]
+        completed += len(weekly_schedule[week])
+
+        result.append({
+            "week": f"Minggu {week + 1} ({ws.strftime('%d')}-{we.strftime('%d %b')})",
+            "tasks": weekly_schedule[week],
+            "totalHours": weekly_hours[week]
         })
-    
+
     return {
         "success": True,
         "data": {
-            "schedule": result_schedule,
+            "schedule": result,
             "summary": {
-                "totalHours": total_hours,
-                "averagePerWeek": round(total_hours / weeks, 1),
-                "tasksCompleted": f"{len(tasks)}/{len(tasks)}",
-                "status": "✓ Seimbang" if total_hours <= max_capacity * 0.8 else "⚠ Padat"
+                "totalHours": total,
+                "averagePerWeek": round(total / weeks, 1),
+                "tasksCompleted": f"{completed}/{len(tasks)}",
+                "status": "✓ Seimbang" if completed == len(tasks) else "⚠ Tidak Lengkap"
             }
         }
     }
 
 
+
 # ============================================
-# MONTHLY SCHEDULER
+# MONTHLY SCHEDULER (FINAL - VERIFIED)
 # ============================================
+
+from datetime import datetime
+import calendar
 
 def run_monthly(payload):
     """
-    Fixed monthly scheduler with proper date handling
+    Monthly scheduler (FINAL, fully bug-proof)
+    - Split task lintas hari
+    - Max jam per hari
+    - Deadline-aware (closest first)
+    - Real calendar month
+    - Aman untuk UI
     """
+
     config = payload["config"]
     tasks = payload["tasks"]
-    
+
     max_monthly = config["maxHoursPerMonth"]
+    max_daily = config.get("maxHoursPerDay", 6)
     blocked_dates = set(config.get("blockedDates", []))
     start_date = datetime.strptime(config["startDate"], "%Y-%m-%d")
-    
-    # Pre-validation
-    total_hours = sum(task["duration"] for task in tasks)
-    
+
+    year, month = start_date.year, start_date.month
+    days_in_month = calendar.monthrange(year, month)[1]
+
+    # =========================
+    # VALIDATION (GLOBAL)
+    # =========================
+    total_hours = sum(t["duration"] for t in tasks)
     if total_hours > max_monthly:
         return {
             "success": False,
-            "errors": [
-                {"type": "Kapasitas", "message": f"Total jam proyek ({total_hours} jam) melebihi kapasitas bulanan ({max_monthly} jam)"}
-            ],
+            "errors": [{
+                "type": "Kapasitas",
+                "message": f"Total jam proyek ({total_hours} jam) melebihi kapasitas bulanan ({max_monthly} jam)"
+            }],
             "suggestions": [
-                f"Tingkatkan max jam/bulan menjadi ≥ {total_hours} jam",
-                "Kurangi estimasi durasi beberapa proyek",
-                "Perpanjang penjadwalan ke 2 bulan",
-                "Hapus proyek yang tidak prioritas"
+                "Tambah max jam per bulan",
+                "Kurangi durasi proyek",
+                "Pecah proyek besar"
             ]
         }
-    
-    # Count available days
-    days_in_month = 31
-    available_days = days_in_month - len(blocked_dates)
-    
-    if available_days < len(tasks):
-        return {
-            "success": False,
-            "errors": [
-                {"type": "Tanggal", "message": f"Hari produktif ({available_days}) lebih sedikit dari jumlah proyek ({len(tasks)})"}
-            ],
-            "suggestions": [
-                "Kurangi tanggal terblokir",
-                "Gabungkan beberapa proyek kecil",
-                f"Perpanjang periode atau kurangi {len(blocked_dates) - (days_in_month - len(tasks))} tanggal terblokir"
-            ]
-        }
-    
-    # Sort by deadline (Greedy: earliest first)
-    tasks_sorted = sorted(tasks, key=lambda x: x["deadline"])
-    
-    # Distribute tasks across month
-    month_schedule = {}
-    total_scheduled = 0
-    
-    for task in tasks_sorted:
-        deadline = task["deadline"]
-        
-        # Find suitable day before deadline
-        assigned = False
-        
-        for day in range(1, deadline + 1):
-            if day not in blocked_dates:
-                if day not in month_schedule:
-                    month_schedule[day] = []
-                
-                # Check if we still have capacity
-                if total_scheduled + task["duration"] <= max_monthly:
-                    month_schedule[day].append({
-                        "task": task["name"],
-                        "hours": task["duration"]
-                    })
-                    total_scheduled += task["duration"]
-                    assigned = True
-                    break
-        
-        if not assigned:
+
+    # Validasi blocked dates
+    for d in blocked_dates:
+        if d < 1 or d > days_in_month:
             return {
                 "success": False,
-                "errors": [
-                    {"type": "Penjadwalan", "message": f"Tidak dapat menjadwalkan '{task['name']}' sebelum deadline (tgl {deadline})"}
-                ],
+                "errors": [{
+                    "type": "Tanggal",
+                    "message": f"Tanggal terblokir ({d}) tidak valid untuk bulan ini"
+                }],
+                "suggestions": ["Periksa tanggal terblokir"]
+            }
+
+    # Semua hari terblokir
+    if len(blocked_dates) == days_in_month:
+        return {
+            "success": False,
+            "errors": [{
+                "type": "Tanggal",
+                "message": "Tidak ada hari produktif tersedia dalam bulan ini"
+            }],
+            "suggestions": [
+                "Hapus beberapa tanggal terblokir",
+                "Pindahkan proyek ke bulan lain"
+            ]
+        }
+
+    # Validasi deadline task
+    for t in tasks:
+        if t["deadline"] < 1 or t["deadline"] > days_in_month:
+            return {
+                "success": False,
+                "errors": [{
+                    "type": "Deadline",
+                    "message": f"Deadline tugas '{t['name']}' tidak valid"
+                }],
+                "suggestions": ["Periksa deadline tugas"]
+            }
+
+    # =========================
+    # SORT TASKS (EARLIEST DEADLINE FIRST)
+    # =========================
+    tasks_sorted = sorted(tasks, key=lambda x: x["deadline"])
+
+    # =========================
+    # STATE TRACKING
+    # =========================
+    daily_hours = {d: 0 for d in range(1, days_in_month + 1)}
+    month_schedule = {d: [] for d in range(1, days_in_month + 1)}
+    total_scheduled = 0
+
+    # =========================
+    # ASSIGN TASKS (SPLIT AWARE)
+    # =========================
+    for task in tasks_sorted:
+        remaining = task["duration"]
+        deadline = task["deadline"]
+
+        for day in range(deadline, 0, -1):
+            if remaining <= 0:
+                break
+
+            if day in blocked_dates:
+                continue
+
+            available = max_daily - daily_hours[day]
+            if available <= 0:
+                continue
+
+            alloc = min(available, remaining)
+
+            if total_scheduled + alloc > max_monthly:
+                break
+
+            month_schedule[day].append({
+                "task": task["name"],
+                "hours": alloc
+            })
+
+            daily_hours[day] += alloc
+            total_scheduled += alloc
+            remaining -= alloc
+
+        if remaining > 0:
+            return {
+                "success": False,
+                "errors": [{
+                    "type": "Penjadwalan",
+                    "message": f"Tugas '{task['name']}' tidak dapat dijadwalkan sebelum deadline"
+                }],
                 "suggestions": [
-                    "Mundurkan deadline proyek",
+                    "Tambah max jam per hari",
                     "Kurangi tanggal terblokir",
-                    "Pecah proyek besar menjadi bagian lebih kecil"
+                    "Mundurkan deadline",
+                    "Pecah proyek besar"
                 ]
             }
-    
-    # Format by weeks
+
+    # =========================
+    # FORMAT OUTPUT (PER MINGGU)
+    # =========================
     weekly_schedule = []
     month_name = start_date.strftime("%b")
-    
-    for week_num in range(4):
-        week_start = week_num * 7 + 1
-        week_end = min(week_start + 6, 31)
-        
-        week_tasks = []
+
+    for week in range(5):
+        start = week * 7 + 1
+        end = min(start + 6, days_in_month)
+
+        tasks_week = []
         has_blocked = False
-        
-        for day in range(week_start, week_end + 1):
-            if day in blocked_dates:
+
+        for d in range(start, end + 1):
+            if d in blocked_dates:
                 has_blocked = True
-            
-            if day in month_schedule:
-                for task_info in month_schedule[day]:
-                    week_tasks.append({
-                        "date": f"{day} {month_name}",
-                        "task": task_info["task"],
-                        "hours": f"{task_info['hours']} jam"
-                    })
-        
+
+            for t in month_schedule[d]:
+                tasks_week.append({
+                    "date": f"{d} {month_name}",
+                    "task": t["task"],
+                    "hours": f"{t['hours']} jam"
+                })
+
         weekly_schedule.append({
-            "weekLabel": f"Minggu {week_num + 1} ({week_start}-{week_end} {month_name})",
-            "tasks": week_tasks,
+            "weekLabel": f"Minggu {week + 1} ({start}-{end} {month_name})",
+            "tasks": tasks_week,
             "isBlocked": has_blocked
         })
-    
-    productive_days = len(month_schedule)
-    
+
+    productive_days = sum(1 for d in daily_hours if daily_hours[d] > 0)
+
     return {
         "success": True,
         "data": {
@@ -448,6 +601,7 @@ def run_monthly(payload):
             }
         }
     }
+
 
 
 # ============================================

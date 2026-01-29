@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { WeeklyConfig, WeeklyTask } from "@/lib/types";
 import { validateWeeklyInput } from "@/lib/scheduler";
+import { InlineIcon } from "@/components/Icon";
 
 export default function WeeklyInputPage() {
   const router = useRouter();
 
-  // Config state
   const [config, setConfig] = useState<WeeklyConfig>({
     startDate: new Date().toISOString().split("T")[0],
     maxHoursPerWeek: 20,
@@ -16,7 +16,6 @@ export default function WeeklyInputPage() {
     weeks: 2,
   });
 
-  // Tasks state
   const [tasks, setTasks] = useState<WeeklyTask[]>([]);
   const [newTask, setNewTask] = useState({
     name: "",
@@ -28,7 +27,6 @@ export default function WeeklyInputPage() {
 
   const allDays = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 
-  // ✅ FIXED: Safe parseInt
   const safeParseInt = (value: string, defaultValue: number): number => {
     const parsed = parseInt(value);
     return isNaN(parsed) || parsed < 0 ? defaultValue : parsed;
@@ -66,7 +64,6 @@ export default function WeeklyInputPage() {
       return;
     }
 
-    // Store in sessionStorage
     sessionStorage.setItem(
       "weeklyScheduleData",
       JSON.stringify({ config, tasks })
@@ -87,13 +84,19 @@ export default function WeeklyInputPage() {
   return (
     <div className="input-container">
       <div className="input-header">
-        <h1>📅 WEEKLY SCHEDULE</h1>
+        <h1>
+          <InlineIcon name="calendar" size={32} className="mr-2" />
+          WEEKLY SCHEDULE
+        </h1>
         <p>Distribusi beban belajar mingguan yang seimbang</p>
       </div>
 
       {/* Periode */}
       <div className="input-section">
-        <h3>📆 Periode Penjadwalan</h3>
+        <h3>
+          <InlineIcon name="calendar" size={20} className="mr-2" />
+          Periode Penjadwalan
+        </h3>
         <div className="input-row">
           <div className="input-group">
             <label>Tanggal Mulai</label>
@@ -125,7 +128,10 @@ export default function WeeklyInputPage() {
 
       {/* Hari Aktif */}
       <div className="input-section">
-        <h3>📋 Hari Aktif Belajar</h3>
+        <h3>
+          <InlineIcon name="clipboard" size={20} className="mr-2" />
+          Hari Aktif Belajar
+        </h3>
         <div className="days-selector">
           {allDays.map((day) => (
             <label key={day} className="day-checkbox">
@@ -145,7 +151,10 @@ export default function WeeklyInputPage() {
 
       {/* Kapasitas */}
       <div className="input-section">
-        <h3>⚡ Kapasitas Belajar</h3>
+        <h3>
+          <InlineIcon name="zap" size={20} className="mr-2" />
+          Kapasitas Belajar
+        </h3>
         <div className="input-group">
           <label>Max Jam per Minggu</label>
           <input
@@ -168,7 +177,10 @@ export default function WeeklyInputPage() {
 
       {/* Tugas */}
       <div className="input-section">
-        <h3>📝 Daftar Tugas</h3>
+        <h3>
+          <InlineIcon name="edit" size={20} className="mr-2" />
+          Daftar Tugas
+        </h3>
 
         {/* Task List */}
         <div className="task-list">
@@ -186,8 +198,14 @@ export default function WeeklyInputPage() {
                 </button>
               </div>
               <div className="task-details">
-                <span>⏱️ {task.duration} jam</span>
-                <span>📅 Deadline: {formatDate(task.deadline)}</span>
+                <span>
+                  <InlineIcon name="clock" size={14} className="mr-1" />
+                  {task.duration} jam
+                </span>
+                <span>
+                  <InlineIcon name="calendar" size={14} className="mr-1" />
+                  Deadline: {formatDate(task.deadline)}
+                </span>
               </div>
             </div>
           ))}

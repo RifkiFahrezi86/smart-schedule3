@@ -1,0 +1,234 @@
+/* styles/icon-styles.css */
+
+/* Base Icon Styles */
+.inline-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.mr-1 {
+  margin-right: 4px;
+}
+
+.mr-2 {
+  margin-right: 8px;
+}
+
+/* Icon in Headings */
+h1 .inline-icon,
+h2 .inline-icon,
+h3 .inline-icon {
+  vertical-align: text-top;
+}
+
+/* Stat Card Icons */
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: white;
+  transition: transform 0.3s ease;
+}
+
+.stat-card:hover .stat-icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.stat-icon .inline-icon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* Action Button Icons */
+.action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.action-btn:hover .action-icon {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Schedule Item Icons */
+.schedule-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  border-radius: 12px;
+  color: white;
+  flex-shrink: 0;
+}
+
+/* Empty State Icon */
+.empty-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+  color: #cbd5e0;
+  opacity: 0.5;
+}
+
+/* Status Icons */
+.schedule-status .inline-icon {
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.schedule-status.success {
+  color: #48bb78;
+}
+
+.schedule-status.success .inline-icon {
+  stroke: #48bb78;
+}
+
+.schedule-status.failed {
+  color: #f56565;
+}
+
+.schedule-status.failed .inline-icon {
+  stroke: #f56565;
+}
+
+/* Loading Spinner Animation */
+.spinner .inline-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Section Header Icons */
+.section-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-header h2 .inline-icon {
+  color: #667eea;
+}
+
+/* Input Section Title Icons */
+.input-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #2d3748;
+  margin-bottom: 16px;
+}
+
+.input-section h3 .inline-icon {
+  color: #667eea;
+}
+
+/* Button Icons */
+.btn-primary .inline-icon,
+.btn-secondary .inline-icon {
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* Task Meta Icons */
+.task-meta .inline-icon,
+.task-details .inline-icon {
+  opacity: 0.7;
+  vertical-align: middle;
+}
+
+/* Icon Color Variations */
+.icon-primary {
+  color: #667eea;
+}
+
+.icon-success {
+  color: #48bb78;
+}
+
+.icon-warning {
+  color: #ed8936;
+}
+
+.icon-danger {
+  color: #f56565;
+}
+
+.icon-info {
+  color: #4299e1;
+}
+
+/* Icon Hover Effects */
+.icon-hover-scale:hover {
+  transform: scale(1.1);
+}
+
+.icon-hover-rotate:hover {
+  transform: rotate(15deg);
+}
+
+.icon-hover-pulse:hover {
+  animation: pulse 0.5s ease;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Responsive Icon Sizes */
+@media (max-width: 768px) {
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .action-icon {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .schedule-icon {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Dark Mode Support (Optional) */
+@media (prefers-color-scheme: dark) {
+  .inline-icon {
+    filter: brightness(1.2);
+  }
+  
+  .stat-icon,
+  .action-icon,
+  .schedule-icon {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  }
+}
