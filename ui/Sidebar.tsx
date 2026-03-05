@@ -8,7 +8,7 @@ export default function Sidebar() {
 
   const menu = [
     { name: "HOME", href: "/home", icon: "/icons/home.svg" },
-    { name: "CALLENDER", href: "/calendar", icon: "/icons/calendar.svg" },
+    { name: "CALENDAR", href: "/calendar", icon: "/icons/calendar.svg" },
     { name: "STUDY PLAN", href: "/study-plan", icon: "/icons/study.svg" },
   ];
 

@@ -81,7 +81,7 @@ h3 .inline-icon {
   justify-content: center;
   align-items: center;
   margin-bottom: 20px;
-  color: #cbd5e0;
+  color: rgba(255,255,255,0.4);
   opacity: 0.5;
 }
 
@@ -129,7 +129,7 @@ h3 .inline-icon {
 }
 
 .section-header h2 .inline-icon {
-  color: #667eea;
+  color: #a78bfa;
 }
 
 /* Input Section Title Icons */
@@ -137,12 +137,12 @@ h3 .inline-icon {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #2d3748;
+  color: #fff;
   margin-bottom: 16px;
 }
 
 .input-section h3 .inline-icon {
-  color: #667eea;
+  color: #a78bfa;
 }
 
 /* Button Icons */

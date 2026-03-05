@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SuccessIcon, LightbulbIcon, InlineIcon, CalendarCheckIcon } from "@/components/Icon";
+import Loading from "@/components/Loading";
 import ResultSummary from "@/ui/ResultSummary";
 import type { MonthlyResult } from "@/lib/types";
 
@@ -28,12 +29,7 @@ export default function MonthlyResultPage() {
   }, [router]);
 
   if (!result || !result.data) {
-    return (
-      <div className="loading-container">
-        <div className="spinner">⚙️</div>
-        <div className="loading-text">Loading...</div>
-      </div>
-    );
+    return <Loading text="Memuat hasil jadwal bulanan..." />;
   }
 
   const { schedule, summary } = result.data;

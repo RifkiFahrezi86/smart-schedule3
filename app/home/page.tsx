@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { InlineIcon } from "@/components/Icon";
+import Loading from "@/components/Loading";
 
 interface DashboardStats {
   totalStudyHours: number;
@@ -30,23 +31,28 @@ export default function HomePage() {
       const schedulesRes = await fetch("/api/schedules");
       if (schedulesRes.ok) {
         const data = await schedulesRes.json();
-        setRecentSchedules(data.schedules.slice(0, 5));
-        calculateStats(data.schedules);
+        const schedules = data.schedules || [];
+        setRecentSchedules(schedules.slice(0, 5));
+        calculateStats(schedules);
       }
 
       const today = new Date();
       const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
       
-      const datesRes = await fetch(
-        `/api/important-dates?start=${today.toISOString()}&end=${nextWeek.toISOString()}`
-      );
-      
-      if (datesRes.ok) {
-        const datesData = await datesRes.json();
-        setStats((prev) => ({
-          ...prev,
-          upcomingDeadlines: datesData.dates?.length || 0,
-        }));
+      try {
+        const datesRes = await fetch(
+          `/api/important-dates?start=${today.toISOString().split("T")[0]}&end=${nextWeek.toISOString().split("T")[0]}`
+        );
+        
+        if (datesRes.ok) {
+          const datesData = await datesRes.json();
+          setStats((prev) => ({
+            ...prev,
+            upcomingDeadlines: datesData.dates?.length || 0,
+          }));
+        }
+      } catch {
+        // Silently fail for important dates
       }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
@@ -117,12 +123,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="home-container">
-        <div className="loading-container">
-          <div className="spinner">
-            <InlineIcon name="loader" size={32} />
-          </div>
-          <p>Loading dashboard...</p>
-        </div>
+        <Loading text="Loading dashboard..." />
       </div>
     );
   }

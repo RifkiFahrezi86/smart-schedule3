@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { WarningIcon, BlockIcon, LightbulbIcon, InfoIcon, InlineIcon } from "@/components/Icon";
+import Loading from "@/components/Loading";
 import type { MonthlyResult } from "@/lib/types";
 
 export default function MonthlyInvalidPage() {
@@ -22,12 +23,7 @@ export default function MonthlyInvalidPage() {
   }, [router]);
 
   if (!result) {
-    return (
-      <div className="loading-container">
-        <div className="spinner">⚙️</div>
-        <div className="loading-text">Loading...</div>
-      </div>
-    );
+    return <Loading text="Memuat informasi..." />;
   }
 
   const errors = result.errors || [];

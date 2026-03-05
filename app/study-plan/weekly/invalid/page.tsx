@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { WarningIcon, BlockIcon, LightbulbIcon, InfoIcon, InlineIcon } from "@/components/Icon";
+import Loading from "@/components/Loading";
 import type { WeeklyResult } from "@/lib/types";
 
 export default function WeeklyInvalidPage() {
   const router = useRouter();
   const [result, setResult] = useState<WeeklyResult | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const data = sessionStorage.getItem("weeklyScheduleResult");
@@ -17,10 +20,11 @@ export default function WeeklyInvalidPage() {
 
     const parsed = JSON.parse(data);
     setResult(parsed);
-  }, []);
+    setLoading(false);
+  }, [router]);
 
-  if (!result) {
-    return <div>Loading...</div>;
+  if (loading || !result) {
+    return <Loading text="Memuat informasi..." />;
   }
 
   const errors = result.errors || [];
@@ -29,7 +33,7 @@ export default function WeeklyInvalidPage() {
   return (
     <div className="invalid-container">
       <div className="invalid-header">
-        <div className="invalid-icon">⚠️</div>
+        <WarningIcon size={80} />
         <h1>Jadwal Tidak Valid</h1>
         <p>Sistem tidak dapat membuat jadwal dengan parameter yang diberikan</p>
       </div>
@@ -37,7 +41,10 @@ export default function WeeklyInvalidPage() {
       {/* Error List */}
       {errors.length > 0 && (
         <div className="error-list">
-          <h3>🚫 Masalah yang Ditemukan:</h3>
+          <h3>
+            <BlockIcon size={24} className="mr-2" color="#ef4444" />
+            Masalah yang Ditemukan:
+          </h3>
           {errors.map((error, index) => (
             <div key={index} className="error-item">
               <span className="error-badge">{error.type}</span>
@@ -50,7 +57,10 @@ export default function WeeklyInvalidPage() {
       {/* Suggestions */}
       {suggestions.length > 0 && (
         <div className="suggestion-box">
-          <h3>💡 Saran Perbaikan:</h3>
+          <h3>
+            <LightbulbIcon size={24} className="mr-2" />
+            Saran Perbaikan:
+          </h3>
           <ul>
             {suggestions.map((suggestion, index) => (
               <li key={index}>{suggestion}</li>
@@ -61,7 +71,10 @@ export default function WeeklyInvalidPage() {
 
       {/* Common Issues */}
       <div className="suggestion-box">
-        <h3>📋 Kemungkinan Penyebab:</h3>
+        <h3>
+          <InfoIcon size={24} className="mr-2" />
+          Kemungkinan Penyebab:
+        </h3>
         <ul>
           <li>
             <strong>Total jam terlalu besar:</strong> Jumlah jam semua tugas
@@ -118,7 +131,8 @@ export default function WeeklyInvalidPage() {
           className="btn-primary"
           onClick={() => router.push("/study-plan/weekly")}
         >
-          ← Kembali & Perbaiki Input
+          <InlineIcon name="arrow-left" size={20} className="mr-2" />
+          Kembali & Perbaiki Input
         </button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import "@/styles/globals.css";
+import "@/styles/icon-styles.css";
 import Sidebar from "@/ui/Sidebar";
 
 export default function RootLayout({
