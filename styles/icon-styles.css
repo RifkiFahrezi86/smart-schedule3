@@ -30,7 +30,7 @@ h3 .inline-icon {
   justify-content: center;
   width: 56px;
   height: 56px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #6b5b50;
   border-radius: 12px;
   color: white;
   transition: transform 0.3s ease;
@@ -51,7 +51,7 @@ h3 .inline-icon {
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #6b5b50;
   border-radius: 8px;
   color: white;
   transition: all 0.3s ease;
@@ -59,7 +59,7 @@ h3 .inline-icon {
 
 .action-btn:hover .action-icon {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(107, 91, 80, 0.4);
 }
 
 /* Schedule Item Icons */
@@ -69,7 +69,7 @@ h3 .inline-icon {
   justify-content: center;
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: #8a7e76;
   border-radius: 12px;
   color: white;
   flex-shrink: 0;
@@ -81,7 +81,7 @@ h3 .inline-icon {
   justify-content: center;
   align-items: center;
   margin-bottom: 20px;
-  color: rgba(255,255,255,0.4);
+  color: #8a7e76;
   opacity: 0.5;
 }
 
@@ -129,7 +129,7 @@ h3 .inline-icon {
 }
 
 .section-header h2 .inline-icon {
-  color: #a78bfa;
+  color: #6b5b50;
 }
 
 /* Input Section Title Icons */
@@ -137,12 +137,12 @@ h3 .inline-icon {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #fff;
+  color: #2d2926;
   margin-bottom: 16px;
 }
 
 .input-section h3 .inline-icon {
-  color: #a78bfa;
+  color: #6b5b50;
 }
 
 /* Button Icons */
