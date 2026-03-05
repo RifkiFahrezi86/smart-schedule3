@@ -1,0 +1,151 @@
+pnpm add @vercel/postgres
+-- =============================================
+-- SMART SCHEDULING DATABASE SCHEMA
+-- PostgreSQL (Vercel Neon)
+-- =============================================
+
+-- Drop existing tables
+DROP TABLE IF EXISTS schedule_items CASCADE;
+DROP TABLE IF EXISTS schedules CASCADE;
+DROP TABLE IF EXISTS important_dates CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+-- =============================================
+-- USERS TABLE
+-- =============================================
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================
+-- SCHEDULES TABLE (Master)
+-- =============================================
+CREATE TABLE schedules (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  schedule_type VARCHAR(20) NOT NULL CHECK (schedule_type IN ('daily', 'weekly', 'monthly')),
+  title VARCHAR(255) NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  
+  -- Daily specific
+  start_time TIME,
+  end_time TIME,
+  personal_start TIME,
+  personal_end TIME,
+  break_time INTEGER, -- minutes
+  max_productive INTEGER, -- minutes
+  
+  -- Weekly specific
+  max_hours_per_week INTEGER,
+  active_days TEXT[], -- ['Senin', 'Selasa', ...]
+  weeks INTEGER,
+  
+  -- Monthly specific
+  max_hours_per_month INTEGER,
+  blocked_dates INTEGER[], -- [10, 11, 12]
+  
+  -- Result data (JSON)
+  result_data JSONB,
+  
+  -- Status
+  status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'success', 'failed')),
+  error_messages JSONB,
+  
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================
+-- SCHEDULE ITEMS TABLE (Detail)
+-- =============================================
+CREATE TABLE schedule_items (
+  id SERIAL PRIMARY KEY,
+  schedule_id INTEGER REFERENCES schedules(id) ON DELETE CASCADE,
+  
+  -- Common fields
+  activity_name VARCHAR(255) NOT NULL,
+  duration INTEGER NOT NULL, -- minutes or hours based on type
+  priority VARCHAR(20) CHECK (priority IN ('tinggi', 'sedang', 'rendah')),
+  
+  -- Scheduled time
+  scheduled_date DATE,
+  scheduled_time TIME,
+  scheduled_end_time TIME,
+  
+  -- Weekly/Monthly specific
+  deadline DATE,
+  week_number INTEGER,
+  
+  -- Metadata
+  reason TEXT,
+  is_break BOOLEAN DEFAULT false,
+  
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================
+-- IMPORTANT DATES TABLE (for Calendar)
+-- =============================================
+CREATE TABLE important_dates (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  color VARCHAR(7) DEFAULT '#ef4444', -- hex color
+  is_all_day BOOLEAN DEFAULT true,
+  start_time TIME,
+  end_time TIME,
+  
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  UNIQUE(user_id, date, title)
+);
+
+-- =============================================
+-- INDEXES for Performance
+-- =============================================
+CREATE INDEX idx_schedules_user_id ON schedules(user_id);
+CREATE INDEX idx_schedules_type ON schedules(schedule_type);
+CREATE INDEX idx_schedules_dates ON schedules(start_date, end_date);
+CREATE INDEX idx_schedule_items_schedule_id ON schedule_items(schedule_id);
+CREATE INDEX idx_schedule_items_date ON schedule_items(scheduled_date);
+CREATE INDEX idx_important_dates_user_date ON important_dates(user_id, date);
+
+-- =============================================
+-- TRIGGERS for Updated At
+-- =============================================
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER schedules_updated_at
+BEFORE UPDATE ON schedules
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER important_dates_updated_at
+BEFORE UPDATE ON important_dates
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at();
+
+-- =============================================
+-- SAMPLE DATA (Optional)
+-- =============================================
+INSERT INTO users (email, name) VALUES 
+('demo@example.com', 'Demo User');
+
+-- Sample important date
+INSERT INTO important_dates (user_id, date, title, description, color) VALUES
+(1, '2026-01-25', 'Deadline Project', 'Submit final project', '#ef4444'),
+(1, '2026-01-30', 'UAS', 'Ujian Akhir Semester', '#f59e0b');
+
